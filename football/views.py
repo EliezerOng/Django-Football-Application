@@ -1,3 +1,5 @@
+from email.mime import image
+from re import X
 from turtle import width
 from django.shortcuts import render, redirect , get_object_or_404
 from django.urls import reverse
@@ -17,6 +19,8 @@ from reportlab.pdfbase import pdfmetrics
 from PIL import Image, ImageDraw
 from reportlab.lib.units import inch
 from django.templatetags.static import static
+from reportlab.lib.colors import yellow, red, black,white
+
 
 # Create your views here.
 
@@ -42,16 +46,22 @@ def football(request):
         lines = file_data.split("\n")
         #lines = lines.split(",")
         player = {}
+        #print(lines)
 
         for index,line in enumerate(lines):
+            if line == '':
+                continue
             if index == 0:
                 continue
             line = line.split(',')
             if line[1] not in player:
                 player[line[1]] = {}
+                player[line[1]]['Sport'] = str(line[9])
             if line[2] not in player[line[1]]:
                 player[line[1]][line[2]] = []
             player[line[1]][line[2]].append((line[5],line[6]))
+        
+        print(player)
 
         # for i in player.items():
         #     print(i[0])
@@ -71,26 +81,71 @@ def football(request):
             p.drawString((PAGE_WIDTH - text_width) / 2.0, y, player_name)
             #p.drawImage('../pitch.jpg', 0.5*inch,7.7*inch, width=250,height=200)
             imageCount = 1
-            oriHeight = 7.7
-            textHeight = 7.3
+            oriHeight = 6.5
+            textHeight = 0
+            centerPoint = 9
+            #width of pitch 105m, height of pitch is 68.5m
+            #halfway line is (PAGE_WIDTH) / 4.0 - 125)
             for j in i[1].items():
-                if imageCount % 2 != 0:
-                    p.drawImage('../pitch2.jpg', ((PAGE_WIDTH) / 4.0 - 125),oriHeight*inch, width=260,height=200)
-                    text = j[0]
-                    text_width = stringWidth(text, "Vera", 18)
-                    p.drawString(((PAGE_WIDTH ) / 4.0 - text_width/2),textHeight*inch,text)
-                    if imageCount != 1:
-                        oriHeight -= 2
+                if j[0] == 'Sport':
+                    continue
+                p.setFillColor("black") #change color of the dots
+                if imageCount == 7:
+                    imageCount = 1
+                    oriHeight = 6.5
+                    textHeight = 0
+                    p.showPage()
+                    p.setFont("Vera", 18)
+                if i[1]['Sport'] == 'Football\r':
+                    image = '../pitch2.jpg'
+                elif i[1]['Sport'] == 'Basketball\r':
+                    image = '../court2.jpg'
+                if imageCount % 2 != 0: # if imageCount is odd, means pitch on left side
+                    p.drawImage(image, ((PAGE_WIDTH) / 4.0 - 125),(PAGE_HEIGHT / 10) * oriHeight, width=250,height=200)
+                    text = j[0] # event name
+                    text_width = stringWidth(text, "Vera", 15)
+                    p.drawString(((PAGE_WIDTH ) / 4.0 - text_width/2 - 1.5),(PAGE_HEIGHT / 10.5) * (oriHeight - textHeight),text)
                     
                     for k in j[1]:
                         print(k)
-                else:
-                    p.drawImage('../pitch2.jpg', (((PAGE_WIDTH) / 4.0) * 3 - 125),oriHeight*inch,width=260,height=200)
+                        p.setFillColor("yellow")
+                        relative_x = (int(k[0]) / 105) * 250
+                        relative_y = (int(k[1]) / 105) * 200
+                        if relative_x <= 125:
+                            x_pos = 125 - relative_x
+                            x = ((PAGE_WIDTH) / 4.0 + x_pos)
+                        else:
+                            x_pos = relative_x - 125
+                            x = ((PAGE_WIDTH) / 4.0 - x_pos)
+                        p.circle(x,(PAGE_HEIGHT / 10) * oriHeight + relative_y,2,stroke=1,fill=1)
+                        #print(x)
+                else: 
+                    p.setFillColor("black")
+                    print(i[1]['Sport'])
+                    p.drawImage(image, (((PAGE_WIDTH) / 4.0) * 3 - 125),(PAGE_HEIGHT / 10) * oriHeight, width=250,height=200)
                     text = j[0]
-                    text_width = stringWidth(text, "Vera", 18)
-                    p.drawString((((PAGE_WIDTH) / 4.0) * 3 - text_width/2),textHeight*inch,text)
+                    text_width = stringWidth(text, "Vera", 15)
+                    p.drawString((((PAGE_WIDTH) / 4.0) * 3 - text_width/2 - 1.5),(PAGE_HEIGHT / 10.5) * (oriHeight - textHeight),text)
+
+                    for k in j[1]:
+                        p.setFillColor("yellow")
+                        #print(k)
+                        relative_x = (int(k[0]) / 105) * 250
+                        relative_y = (int(k[1]) / 105) * 200
+                        if relative_x <= 125:
+                            x_pos = 125 - relative_x
+                            x = (((PAGE_WIDTH) / 4.0) * 3 + x_pos)
+                        else:
+                            x_pos = relative_x - 125
+                            x = (((PAGE_WIDTH) / 4.0) * 3 - x_pos)
+                        p.circle(x,(PAGE_HEIGHT / 10) * oriHeight + relative_y,2,stroke=1,fill=1)
+                        #print(x)
+
                 imageCount += 1
-                print(j)
+                if imageCount % 2 != 0 and imageCount != 1:
+                    oriHeight -= 3
+                    textHeight += 0.12
+                #print(j)
 
             #generate new pdf page for each player
             p.showPage()
